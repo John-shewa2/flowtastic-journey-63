@@ -18,6 +18,10 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
+// 🔹 Imports for chatbot modal
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+
 interface Profile {
   id: string;
   name: string;
@@ -30,6 +34,11 @@ const Dashboard = () => {
   const navigate = useNavigate();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
+
+  // 🔹 Chatbot states
+  const [chatOpen, setChatOpen] = useState(false);
+  const [messages, setMessages] = useState<{ sender: string; text: string }[]>([]);
+  const [userInput, setUserInput] = useState("");
 
   useEffect(() => {
     const getProfile = async () => {
@@ -71,9 +80,48 @@ const Dashboard = () => {
       toast.error("Error signing out");
     } else {
       toast.success("Signed out successfully");
+      setMessages([]); // clear chat when logging out
       navigate("/");
     }
   };
+
+  // 🔹 Send message to Hugging Face API
+  async function sendMessage() {
+  if (!userInput.trim()) return;
+
+  const newMessage = { sender: "You", text: userInput };
+  setMessages(prev => [...prev, newMessage]);
+  setUserInput("");
+
+  try {
+    const res = await fetch(
+  "https://api-inference.huggingface.co/models/google/flan-t5-large",
+  {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${import.meta.env.VITE_HF_API_KEY}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ inputs: userInput }),
+  }
+);
+
+    const data = await res.json();
+
+    if (data.error) {
+      setMessages(prev => [...prev, { sender: "Bot", text: `Error: ${data.error}` }]);
+      return;
+    }
+
+    const botReply =
+      data?.[0]?.generated_text?.slice(userInput.length).trim() ||
+      "Sorry, I didn’t get that.";
+
+    setMessages(prev => [...prev, { sender: "Bot", text: botReply }]);
+  } catch (err) {
+    setMessages(prev => [...prev, { sender: "Bot", text: "Error connecting to AI." }]);
+  }
+}
 
   if (loading) {
     return (
@@ -147,6 +195,7 @@ const Dashboard = () => {
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
           {isseller ? (
             <>
+              {/* Seller cards unchanged */}
               <Card className="shadow-soft hover:shadow-glow transition-smooth cursor-pointer">
                 <CardHeader>
                   <div className="flex items-center justify-between">
@@ -194,6 +243,7 @@ const Dashboard = () => {
             </>
           ) : (
             <>
+              {/* Buyer cards */}
               <Card className="shadow-soft hover:shadow-glow transition-smooth cursor-pointer">
                 <CardHeader>
                   <div className="flex items-center justify-between">
@@ -226,7 +276,11 @@ const Dashboard = () => {
                 </CardContent>
               </Card>
 
-              <Card className="shadow-soft hover:shadow-glow transition-smooth cursor-pointer">
+              {/* 🔹 AI Assistant Card (click opens chatbot) */}
+              <Card 
+                className="shadow-soft hover:shadow-glow transition-smooth cursor-pointer"
+                onClick={() => setChatOpen(true)}
+              >
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <Sparkles className="h-5 w-5 text-primary" />
@@ -277,7 +331,7 @@ const Dashboard = () => {
                     <Package className="mr-2 h-4 w-4" />
                     Browse Marketplace
                   </Button>
-                  <Button variant="outline">
+                  <Button variant="outline" onClick={() => setChatOpen(true)}>
                     <Sparkles className="mr-2 h-4 w-4" />
                     Ask AI Assistant
                   </Button>
@@ -287,6 +341,40 @@ const Dashboard = () => {
           </CardContent>
         </Card>
       </div>
+
+      {/* 🔹 Chatbot Dialog */}
+      <Dialog open={chatOpen} onOpenChange={setChatOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>AI Assistant</DialogTitle>
+          </DialogHeader>
+
+          <div className="h-64 overflow-y-auto border p-2 rounded-md space-y-2">
+            {messages.map((msg, i) => (
+              <div
+                key={i}
+                className={`p-2 rounded-lg ${
+                  msg.sender === "You"
+                    ? "bg-blue-100 text-right"
+                    : "bg-gray-100 text-left"
+                }`}
+              >
+                <b>{msg.sender}: </b>
+                {msg.text}
+              </div>
+            ))}
+          </div>
+
+          <div className="flex gap-2 mt-2">
+            <Input
+              value={userInput}
+              onChange={(e) => setUserInput(e.target.value)}
+              placeholder="Type your message..."
+            />
+            <Button onClick={sendMessage}>Send</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
