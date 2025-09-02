@@ -1,172 +1,134 @@
-import React from "react";
-import { useNavigate } from "react-router-dom";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Calendar } from "@/components/ui/calendar"
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover"
-import { cn } from "@/lib/utils"
-import { CalendarIcon } from "lucide-react"
-import { format } from "date-fns"
-import { useState } from "react"
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { X } from "lucide-react";
 
-const CreateGroceryPlan = () => {
-  const navigate = useNavigate();
-  const [date, setDate] = useState<Date | undefined>(new Date())
+const CreateGroceryPlan: React.FC = () => {
+  const [planName, setPlanName] = useState("");
+  const [vegetable, setVegetable] = useState("");
+  const [amount, setAmount] = useState("");
+  const [frequency, setFrequency] = useState("");
+  const [items, setItems] = useState<
+    { vegetable: string; amount: string; frequency: string }[]
+  >([]);
+
+  const handleAddItem = () => {
+    if (vegetable && amount && frequency) {
+      setItems([...items, { vegetable, amount, frequency }]);
+      setVegetable("");
+      setAmount("");
+      setFrequency("");
+    }
+  };
+
+  const handleRemoveItem = (index: number) => {
+    setItems(items.filter((_, i) => i !== index));
+  };
+
+  const handleSavePlan = () => {
+    const plan = {
+      name: planName,
+      items,
+    };
+    console.log("Saving plan:", plan);
+    // TODO: Replace with Supabase insert when backend is ready
+  };
 
   return (
-    <div className="min-h-screen bg-gradient-organic">
-      <div className="container mx-auto px-4 py-8">
-        <Card className="w-full max-w-3xl mx-auto">
-          <CardHeader>
-            <CardTitle>Create Grocery Plan</CardTitle>
-            <CardDescription>
-              Design your perfect meal plan.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="grid gap-4">
-            <div className="grid gap-2">
-              <Label htmlFor="plan-name">Plan Name</Label>
-              <Input id="plan-name" placeholder="e.g., Healthy Week" />
+    <div className="p-6">
+      <Card>
+        <CardHeader>
+          <CardTitle>Create Grocery Plan</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {/* Plan Name */}
+          <div>
+            <Label>Plan Name</Label>
+            <Input
+              value={planName}
+              onChange={(e) => setPlanName(e.target.value)}
+              placeholder="Enter plan name"
+            />
+          </div>
+
+          {/* Add Item Section */}
+          <div className="space-y-2">
+            <Label>Add Item</Label>
+            <div className="flex flex-wrap gap-2">
+              <select
+                className="border rounded px-3 py-2"
+                value={vegetable}
+                onChange={(e) => setVegetable(e.target.value)}
+              >
+                <option value="">Select Vegetable</option>
+                <option value="Potato">Potato</option>
+                <option value="Tomato">Tomato</option>
+                <option value="Onion">Onion</option>
+                <option value="Carrot">Carrot</option>
+                <option value="Cabbage">Cabbage</option>
+              </select>
+
+              <Input
+                type="number"
+                placeholder="Amount (kg)"
+                value={amount}
+                onChange={(e) => setAmount(e.target.value)}
+              />
+
+              <select
+                className="border rounded px-3 py-2"
+                value={frequency}
+                onChange={(e) => setFrequency(e.target.value)}
+              >
+                <option value="">Select Frequency</option>
+                <option value="Daily">Daily</option>
+                <option value="Weekly">Weekly</option>
+                <option value="Monthly">Monthly</option>
+              </select>
+
+              <Button onClick={handleAddItem}>+ Add Item</Button>
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <Label>Duration: Start Date</Label>
-                <Popover>
-                  <PopoverTrigger asChild>
+          </div>
+
+          {/* Items Table */}
+          <table className="w-full border mt-4">
+            <thead>
+              <tr className="bg-gray-100">
+                <th className="border px-4 py-2 text-left">Vegetable</th>
+                <th className="border px-4 py-2 text-left">Amount (kg)</th>
+                <th className="border px-4 py-2 text-left">Frequency</th>
+                <th className="border px-4 py-2"></th>
+              </tr>
+            </thead>
+            <tbody>
+              {items.map((item, index) => (
+                <tr key={index}>
+                  <td className="border px-4 py-2">{item.vegetable}</td>
+                  <td className="border px-4 py-2">{item.amount}</td>
+                  <td className="border px-4 py-2">{item.frequency}</td>
+                  <td className="border px-4 py-2 text-center">
                     <Button
-                      variant={"outline"}
-                      className={cn(
-                        "w-[240px] justify-start text-left font-normal",
-                        !date && "text-muted-foreground"
-                      )}
+                      variant="destructive"
+                      size="sm"
+                      onClick={() => handleRemoveItem(index)}
                     >
-                      <CalendarIcon className="mr-2 h-4 w-4" />
-                      {date ? format(date, "PPP") : <span>Pick a date</span>}
+                      <X className="w-4 h-4" />
                     </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
-                    <Calendar
-                      mode="single"
-                      selected={date}
-                      onSelect={setDate}
-                      disabled={(date) =>
-                        date > new Date()
-                      }
-                      initialFocus
-                    />
-                  </PopoverContent>
-                </Popover>
-              </div>
-              <div>
-                <Label>End Date</Label>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button
-                      variant={"outline"}
-                      className={cn(
-                        "w-[240px] justify-start text-left font-normal",
-                        !date && "text-muted-foreground"
-                      )}
-                    >
-                      <CalendarIcon className="mr-2 h-4 w-4" />
-                      {date ? format(date, "PPP") : <span>Pick a date</span>}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
-                    <Calendar
-                      mode="single"
-                      selected={date}
-                      onSelect={setDate}
-                      disabled={(date) =>
-                        date < new Date()
-                      }
-                      initialFocus
-                    />
-                  </PopoverContent>
-                </Popover>
-              </div>
-            </div>
-            <div>
-              <Label htmlFor="search-items">Select Items</Label>
-              <div className="flex">
-                <Input
-                  id="search-items"
-                  placeholder="Search for items..."
-                  className="flex-grow"
-                />
-                <Button variant="outline" className="ml-2">
-                  + Add Item
-                </Button>
-              </div>
-            </div>
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead>
-                  <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Item
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Quantity
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Frequency
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Notes
-                    </th>
-                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Actions
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  <tr>
-                    <td className="px-6 py-4 whitespace-nowrap">Rice</td>
-                    <td className="px-6 py-4 whitespace-nowrap">2 kg</td>
-                    <td className="px-6 py-4 whitespace-nowrap">Weekly</td>
-                    <td className="px-6 py-4 whitespace-nowrap">---</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-right">
-                      <Button variant="ghost" size="icon">
-                        X
-                      </Button>
-                    </td>
-                  </tr>
-                  <tr>
-                    <td className="px-6 py-4 whitespace-nowrap">Milk</td>
-                    <td className="px-6 py-4 whitespace-nowrap">5 L</td>
-                    <td className="px-6 py-4 whitespace-nowrap">Daily</td>
-                    <td className="px-6 py-4 whitespace-nowrap">---</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-right">
-                      <Button variant="ghost" size="icon">
-                        X
-                      </Button>
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-            <div className="flex justify-end gap-2">
-              <Button variant="secondary" onClick={() => navigate("/dashboard")}>
-                Cancel
-              </Button>
-              <Button variant="hero">Save Plan</Button>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+
+          {/* Save + Cancel */}
+          <div className="flex gap-2 mt-4">
+            <Button onClick={handleSavePlan}>Save Plan</Button>
+            <Button variant="outline">Cancel</Button>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 };
