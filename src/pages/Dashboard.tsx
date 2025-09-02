@@ -201,7 +201,7 @@ const Dashboard = () => {
                       <ShoppingCart className="h-5 w-5 text-primary" />
                       Grocery Plans
                     </CardTitle>
-                    <Button size="sm" variant="outline">
+                    <Button size="sm" variant="outline" onClick={() => navigate("/create-plan")}>
                       <Plus className="h-4 w-4 mr-1" />
                       Create
                     </Button>

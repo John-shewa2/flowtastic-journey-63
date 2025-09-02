@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Leaf, Mail, Lock, User, AlertCircle } from "lucide-react";
+import { Leaf, Lock, User, AlertCircle, Phone } from "lucide-react"; // swapped Mail -> Phone
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
@@ -14,7 +14,7 @@ const Auth = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
-  const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState(""); // swapped email -> phone
   const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState("");
   const [error, setError] = useState("");
@@ -23,7 +23,6 @@ const Auth = () => {
   const userType = searchParams.get("type") || "user";
 
   useEffect(() => {
-    // Check if user is already logged in
     const checkUser = async () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
@@ -40,14 +39,18 @@ const Auth = () => {
 
     try {
       const redirectUrl = `${window.location.origin}/dashboard`;
-      
+
+      // full phone with +251
+      const fullPhone = "+251" + phone;
+
       const { error: signUpError } = await supabase.auth.signUp({
-        email,
+        email: fullPhone + "@placeholder.com", // 👈 workaround since Supabase requires email
         password,
         options: {
           emailRedirectTo: redirectUrl,
           data: {
             full_name: fullName,
+            phone: fullPhone,
             user_type: userType === "seller" ? "seller" : "buyer"
           }
         }
@@ -55,14 +58,14 @@ const Auth = () => {
 
       if (signUpError) {
         if (signUpError.message.includes("already registered")) {
-          setError("This email is already registered. Please try logging in instead.");
+          setError("This phone is already registered. Please try logging in instead.");
         } else {
           setError(signUpError.message);
         }
         return;
       }
 
-      toast.success("Account created successfully! Please check your email to confirm your account.");
+      toast.success("Account created successfully!");
     } catch (err: any) {
       setError("An unexpected error occurred. Please try again.");
     } finally {
@@ -76,14 +79,16 @@ const Auth = () => {
     setError("");
 
     try {
+      const fullPhone = "+251" + phone;
+
       const { error: signInError } = await supabase.auth.signInWithPassword({
-        email,
+        email: fullPhone + "@placeholder.com", // 👈 same trick
         password,
       });
 
       if (signInError) {
         if (signInError.message.includes("Invalid login credentials")) {
-          setError("Invalid email or password. Please check your credentials and try again.");
+          setError("Invalid phone or password. Please check your credentials and try again.");
         } else {
           setError(signInError.message);
         }
@@ -136,21 +141,28 @@ const Auth = () => {
                 </Alert>
               )}
 
+              {/* 🔹 LOGIN */}
               <TabsContent value="login">
                 <form onSubmit={handleSignIn} className="space-y-4">
                   <div className="space-y-2">
-                    <Label htmlFor="email">Email</Label>
-                    <div className="relative">
-                      <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                      <Input
-                        id="email"
-                        type="email"
-                        placeholder="Enter your email"
-                        value={email}
-                        onChange={(e) => setEmail(e.target.value)}
-                        className="pl-10"
-                        required
-                      />
+                    <Label htmlFor="phone">Telephone</Label>
+                    <div className="flex items-center">
+                      <span className="px-3 py-2 bg-gray-100 border rounded-l-md text-gray-700">
+                        +251
+                      </span>
+                      <div className="relative flex-1">
+                        <Phone className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                        <Input
+                          id="phone"
+                          type="tel"
+                          placeholder="9XXXXXXXX"
+                          value={phone}
+                          onChange={(e) => setPhone(e.target.value)}
+                          className="pl-10 rounded-l-none"
+                          pattern="[0-9]{8,9}"
+                          required
+                        />
+                      </div>
                     </div>
                   </div>
                   <div className="space-y-2">
@@ -174,6 +186,7 @@ const Auth = () => {
                 </form>
               </TabsContent>
 
+              {/* 🔹 SIGNUP */}
               <TabsContent value="signup">
                 <form onSubmit={handleSignUp} className="space-y-4">
                   <div className="space-y-2">
@@ -192,18 +205,24 @@ const Auth = () => {
                     </div>
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="signup-email">Email</Label>
-                    <div className="relative">
-                      <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                      <Input
-                        id="signup-email"
-                        type="email"
-                        placeholder="Enter your email"
-                        value={email}
-                        onChange={(e) => setEmail(e.target.value)}
-                        className="pl-10"
-                        required
-                      />
+                    <Label htmlFor="signup-phone">Telephone</Label>
+                    <div className="flex items-center">
+                      <span className="px-3 py-2 bg-gray-100 border rounded-l-md text-gray-700">
+                        +251
+                      </span>
+                      <div className="relative flex-1">
+                        <Phone className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                        <Input
+                          id="signup-phone"
+                          type="tel"
+                          placeholder="9XXXXXXXX"
+                          value={phone}
+                          onChange={(e) => setPhone(e.target.value)}
+                          className="pl-10 rounded-l-none"
+                          pattern="[0-9]{8,9}"
+                          required
+                        />
+                      </div>
                     </div>
                   </div>
                   <div className="space-y-2">
