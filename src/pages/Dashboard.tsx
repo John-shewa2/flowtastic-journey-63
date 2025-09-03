@@ -85,43 +85,38 @@ const Dashboard = () => {
     }
   };
 
-  // 🔹 Send message to Hugging Face API
+  // 🔹 Send message to Nutrition AI Assistant
   async function sendMessage() {
-  if (!userInput.trim()) return;
+    if (!userInput.trim()) return;
 
-  const newMessage = { sender: "You", text: userInput };
-  setMessages(prev => [...prev, newMessage]);
-  setUserInput("");
+    const newMessage = { sender: "You", text: userInput };
+    setMessages(prev => [...prev, newMessage]);
+    const currentInput = userInput;
+    setUserInput("");
 
-  try {
-    const res = await fetch(
-  "https://api-inference.huggingface.co/models/google/flan-t5-large",
-  {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${import.meta.env.VITE_HF_API_KEY}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({ inputs: userInput }),
-  }
-);
+    try {
+      const { data, error } = await supabase.functions.invoke('nutrition-ai', {
+        body: { 
+          message: currentInput,
+          groceryPlan: null // TODO: Pass user's current grocery plan for context
+        }
+      });
 
-    const data = await res.json();
+      if (error) throw error;
 
-    if (data.error) {
-      setMessages(prev => [...prev, { sender: "Bot", text: `Error: ${data.error}` }]);
-      return;
+      if (data.error) {
+        setMessages(prev => [...prev, { sender: "Nutri-AI", text: `Error: ${data.error}` }]);
+        return;
+      }
+
+      const botReply = data.response || "Sorry, I didn't get that.";
+      setMessages(prev => [...prev, { sender: "Nutri-AI", text: botReply }]);
+
+    } catch (err) {
+      console.error("Error fetching AI response:", err);
+      setMessages(prev => [...prev, { sender: "Nutri-AI", text: "Sorry, I'm having trouble connecting right now. Please try again later." }]);
     }
-
-    const botReply =
-      data?.[0]?.generated_text?.slice(userInput.length).trim() ||
-      "Sorry, I didn’t get that.";
-
-    setMessages(prev => [...prev, { sender: "Bot", text: botReply }]);
-  } catch (err) {
-    setMessages(prev => [...prev, { sender: "Bot", text: "Error connecting to AI." }]);
   }
-}
 
   if (loading) {
     return (
@@ -195,7 +190,7 @@ const Dashboard = () => {
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
           {isseller ? (
             <>
-              {/* Seller cards unchanged */}
+              {/* Seller cards */}
               <Card className="shadow-soft hover:shadow-glow transition-smooth cursor-pointer">
                 <CardHeader>
                   <div className="flex items-center justify-between">
@@ -276,7 +271,7 @@ const Dashboard = () => {
                 </CardContent>
               </Card>
 
-              {/* 🔹 AI Assistant Card (click opens chatbot) */}
+              {/* 🔹 AI Nutrition Assistant Card */}
               <Card 
                 className="shadow-soft hover:shadow-glow transition-smooth cursor-pointer"
                 onClick={() => setChatOpen(true)}
@@ -284,12 +279,12 @@ const Dashboard = () => {
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <Sparkles className="h-5 w-5 text-primary" />
-                    AI Assistant
+                    Nutrition Assistant
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
                   <div className="text-2xl font-bold">Chat</div>
-                  <CardDescription>Get nutrition advice</CardDescription>
+                  <CardDescription>Get personalized nutrition advice</CardDescription>
                 </CardContent>
               </Card>
             </>
@@ -323,7 +318,7 @@ const Dashboard = () => {
                 </>
               ) : (
                 <>
-                  <Button variant="hero">
+                  <Button variant="hero" onClick={() => navigate("/create-plan")}>
                     <ShoppingCart className="mr-2 h-4 w-4" />
                     Create Grocery Plan
                   </Button>
@@ -333,7 +328,7 @@ const Dashboard = () => {
                   </Button>
                   <Button variant="outline" onClick={() => setChatOpen(true)}>
                     <Sparkles className="mr-2 h-4 w-4" />
-                    Ask AI Assistant
+                    Ask Nutrition AI
                   </Button>
                 </>
               )}
@@ -342,25 +337,39 @@ const Dashboard = () => {
         </Card>
       </div>
 
-      {/* 🔹 Chatbot Dialog */}
+      {/* 🔹 Nutrition AI Chatbot Dialog */}
       <Dialog open={chatOpen} onOpenChange={setChatOpen}>
         <DialogContent className="max-w-lg">
           <DialogHeader>
-            <DialogTitle>AI Assistant</DialogTitle>
+            <DialogTitle className="flex items-center gap-2">
+              <Sparkles className="h-5 w-5 text-primary" />
+              Nutrition AI Assistant
+            </DialogTitle>
           </DialogHeader>
 
           <div className="h-64 overflow-y-auto border p-2 rounded-md space-y-2">
+            {messages.length === 0 && (
+              <div className="text-muted-foreground text-center p-4">
+                👋 Hi! I'm your Nutrition AI Assistant. Ask me about:
+                <br />• Nutritional analysis of foods
+                <br />• Healthy meal planning
+                <br />• Dietary recommendations
+                <br />• Food substitutions
+              </div>
+            )}
             {messages.map((msg, i) => (
               <div
                 key={i}
                 className={`p-2 rounded-lg ${
                   msg.sender === "You"
-                    ? "bg-blue-100 text-right"
-                    : "bg-gray-100 text-left"
+                    ? "bg-primary/10 text-right ml-8"
+                    : "bg-muted mr-8"
                 }`}
               >
-                <b>{msg.sender}: </b>
-                {msg.text}
+                <div className="text-xs text-muted-foreground mb-1">
+                  {msg.sender}
+                </div>
+                <div className="text-sm">{msg.text}</div>
               </div>
             ))}
           </div>
@@ -369,9 +378,12 @@ const Dashboard = () => {
             <Input
               value={userInput}
               onChange={(e) => setUserInput(e.target.value)}
-              placeholder="Type your message..."
+              placeholder="Ask about nutrition, meal planning, or healthy eating..."
+              onKeyPress={(e) => e.key === 'Enter' && sendMessage()}
             />
-            <Button onClick={sendMessage}>Send</Button>
+            <Button onClick={sendMessage} disabled={!userInput.trim()}>
+              Send
+            </Button>
           </div>
         </DialogContent>
       </Dialog>
