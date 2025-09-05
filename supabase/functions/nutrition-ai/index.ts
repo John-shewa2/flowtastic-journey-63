@@ -57,9 +57,40 @@ Current context: ${groceryPlan ? `User's grocery plan: ${JSON.stringify(groceryP
     });
 
     if (!response.ok) {
-      const errorData = await response.json();
+      const errorData = await response.json().catch(() => ({}));
       console.error('OpenAI API error:', errorData);
-      throw new Error(`OpenAI API error: ${errorData.error?.message || 'Unknown error'}`);
+      const errMsg = errorData?.error?.message || 'Unknown error';
+
+      // Graceful fallback when OpenAI is unavailable (quota, config, etc.)
+      const lowerMsg = (message || '').toLowerCase();
+      const tips: string[] = [];
+      if (lowerMsg.includes('protein')) tips.push('Prioritize lean proteins like chicken breast, tofu, eggs, beans, or Greek yogurt across meals.');
+      if (lowerMsg.includes('fiber') || lowerMsg.includes('vegetable')) tips.push('Aim for 2–3 cups of vegetables daily and include high‑fiber carbs like oats, quinoa, lentils, and berries.');
+      if (lowerMsg.includes('weight') || lowerMsg.includes('fat')) tips.push('Create a small calorie deficit, focus on whole foods, and include resistance training 2–3x/week.');
+      if (lowerMsg.includes('meal') || lowerMsg.includes('plan')) tips.push('Build plates using the 3-2-1 method: 3 parts veggies, 2 parts protein, 1 part whole‑grain carbs + healthy fats.');
+      if (tips.length === 0) {
+        tips.push(
+          'Base meals around vegetables + lean protein + whole‑grain carbs + healthy fats.',
+          'Hydrate well (2–3L/day) and limit ultra‑processed foods and added sugars.',
+          'Batch‑prep simple meals (grain + protein + veg) to make healthy choices easy.'
+        );
+      }
+
+      const planHint = groceryPlan
+        ? 'Based on your grocery plan, add color variety (dark greens, orange/red veg), a lean protein per meal, and swap refined grains for whole grains where possible.'
+        : 'Tell me your goal (e.g., weight loss, muscle gain, heart health) or paste a grocery list for tailored advice.';
+
+      const fallbackResponse = `Nutri-AI temporary tip (service unavailable):\n\n${tips.map((t, i) => `${i + 1}. ${t}`).join('\n')}\n\n${planHint}`;
+
+      return new Response(JSON.stringify({
+        response: fallbackResponse,
+        success: true,
+        fallback: true,
+        note: `Returned fallback due to AI error: ${errMsg}`,
+      }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 200,
+      });
     }
 
     const data = await response.json();
@@ -74,12 +105,24 @@ Current context: ${groceryPlan ? `User's grocery plan: ${JSON.stringify(groceryP
 
   } catch (error) {
     console.error('Error in nutrition-ai function:', error);
-    return new Response(JSON.stringify({ 
-      error: error.message,
-      success: false 
+
+    // Final safety net: generic fallback when anything goes wrong (e.g., missing key)
+    const tips = [
+      'Build meals with veggies + lean protein + whole‑grain carbs + healthy fats.',
+      'Aim for 25–35g fiber/day from beans, whole grains, fruits, and veggies.',
+      'Plan 3–4 balanced meals/snacks to keep energy steady and prevent overeating.'
+    ];
+
+    const fallbackResponse = `Nutri-AI temporary tip (service unavailable):\n\n${tips.map((t, i) => `${i + 1}. ${t}`).join('\n')}\n\nShare your grocery list or goals for more tailored guidance.`;
+
+    return new Response(JSON.stringify({
+      response: fallbackResponse,
+      success: true,
+      fallback: true,
+      note: `Returned generic fallback due to error: ${error?.message || 'Unknown error'}`,
     }), {
-      status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      status: 200,
     });
   }
 });
